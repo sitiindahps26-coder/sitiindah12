@@ -1,0 +1,299 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Sistem Informasi Profil - Demo</title>
+  <style>
+    :root{
+      --bg:#f6f8fa; --card:#ffffff; --accent:#2563eb; --muted:#6b7280; --danger:#ef4444;
+      --radius:12px; --glass: rgba(255,255,255,0.6);
+    }
+    *{box-sizing:border-box;font-family:Inter, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial}
+    html,body{height:100%;margin:0;background:linear-gradient(180deg,var(--bg),#eef2ff);}
+    .app{max-width:1100px;margin:28px auto;padding:20px;}
+    header{display:flex;align-items:center;justify-content:space-between;margin-bottom:18px}
+    h1{font-size:20px;margin:0}
+    .controls{display:flex;gap:8px;align-items:center}
+    input[type=search]{padding:10px 12px;border-radius:10px;border:1px solid #e6e9ee;background:transparent}
+    button{background:var(--accent);color:#fff;border:0;padding:9px 12px;border-radius:10px;cursor:pointer}
+    button.ghost{background:transparent;color:var(--accent);border:1px solid rgba(37,99,235,0.12)}
+
+    .layout{display:grid;grid-template-columns:320px 1fr;gap:18px}
+    .panel{background:var(--card);border-radius:var(--radius);padding:14px;box-shadow:0 6px 18px rgba(20,20,50,0.06)}
+
+    /* Left: list */
+    .list{display:flex;flex-direction:column;gap:8px;max-height:66vh;overflow:auto;padding-right:6px}
+    .list-item{display:flex;gap:10px;align-items:center;padding:8px;border-radius:10px;cursor:pointer}
+    .list-item:hover{background:#f3f6ff}
+    .avatar{width:52px;height:52px;border-radius:10px;background:linear-gradient(135deg,#e2e8ff,#eef2ff);display:flex;align-items:center;justify-content:center;font-weight:600;color:var(--accent);overflow:hidden}
+    .meta{flex:1}
+    .meta small{display:block;color:var(--muted)}
+
+    /* right: main */
+    .toolbar{display:flex;align-items:center;gap:8px;justify-content:space-between;margin-bottom:12px}
+    .cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px}
+    .card{background:linear-gradient(180deg,var(--glass),#fff);padding:14px;border-radius:12px;border:1px solid rgba(16,24,40,0.04)}
+    .card .name{font-weight:700}
+    .card .info{font-size:13px;color:var(--muted);margin-top:6px}
+    .card .actions{display:flex;gap:8px;margin-top:10px}
+    .btn-sm{padding:6px 8px;border-radius:8px;border:0;cursor:pointer}
+    .btn-edit{background:#fff;border:1px solid rgba(37,99,235,0.12);color:var(--accent)}
+    .btn-delete{background:transparent;color:var(--danger);border:1px solid rgba(239,68,68,0.08)}
+
+    /* form modal */
+    .modal{position:fixed;inset:0;display:none;align-items:center;justify-content:center;padding:20px}
+    .modal.open{display:flex}
+    .form{width:720px;max-width:100%;background:var(--card);padding:18px;border-radius:14px;box-shadow:0 12px 40px rgba(10,10,30,0.12)}
+    .form-grid{display:grid;grid-template-columns:120px 1fr;gap:10px;align-items:start}
+    .form-grid img{width:100px;height:100px;border-radius:10px;object-fit:cover;border:1px solid #eee}
+    label{font-size:13px;color:var(--muted);display:block;margin-bottom:6px}
+    input,select,textarea{width:100%;padding:10px;border-radius:8px;border:1px solid #e6e9ee}
+    textarea{min-height:100px}
+    .form-actions{display:flex;gap:8px;justify-content:flex-end;margin-top:12px}
+    .small{font-size:12px;color:var(--muted)}
+
+    /* responsive */
+    @media (max-width:900px){.layout{grid-template-columns:1fr}.list{max-height:200px}}
+  </style>
+</head>
+<body>
+  <div class="app">
+    <header>
+      <h1>Sistem Informasi Profil — Demo</h1>
+      <div class="controls">
+        <input id="search" type="search" placeholder="Cari nama, pekerjaan, alamat..." />
+        <button id="btnAdd">+ Tambah</button>
+        <button id="btnExport" class="ghost">Export JSON</button>
+      </div>
+    </header>
+
+    <div class="layout">
+      <aside class="panel">
+        <h3 style="margin-top:0">Daftar Profil</h3>
+        <div class="list" id="profileList"></div>
+        <div style="margin-top:10px" class="small">Klik item untuk melihat / edit. Data disimpan di <code>localStorage</code>.</div>
+      </aside>
+
+      <main class="panel">
+        <div class="toolbar">
+          <div>
+            <strong id="countTitle">0 profil</strong>
+            <div class="small">Tampilkan profil</div>
+          </div>
+          <div style="display:flex;gap:8px;align-items:center">
+            <select id="filterJob"><option value="">Semua Pekerjaan</option></select>
+            <button id="btnImport" class="ghost">Import</button>
+            <input id="fileImport" type="file" accept="application/json" style="display:none" />
+          </div>
+        </div>
+
+        <div class="cards" id="cards"></div>
+      </main>
+    </div>
+  </div>
+
+  <!-- modal form -->
+  <div class="modal" id="modal">
+    <form class="form" id="form">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+        <h3 id="formTitle">Tambah Profil</h3>
+        <button type="button" id="closeModal" class="ghost">Tutup</button>
+      </div>
+
+      <div class="form-grid">
+        <div>
+          <img id="preview" src="" alt="avatar preview" />
+          <input id="avatarFile" type="file" accept="image/*" style="margin-top:8px" />
+          <div class="small">Maks 1MB. Jika tidak diisi, inisial akan tampil.</div>
+        </div>
+        <div>
+          <input type="hidden" id="profileId" />
+          <label>Nama</label>
+          <input id="name" required />
+          <label style="margin-top:8px">Pekerjaan</label>
+          <input id="job" />
+          <label style="margin-top:8px">Alamat</label>
+          <input id="address" />
+          <label style="margin-top:8px">Email</label>
+          <input id="email" type="email" />
+          <label style="margin-top:8px">Telepon</label>
+          <input id="phone" />
+          <label style="margin-top:8px">Catatan</label>
+          <textarea id="notes"></textarea>
+          <div class="form-actions">
+            <button type="button" id="btnCancel" class="ghost">Batal</button>
+            <button type="submit">Simpan</button>
+          </div>
+        </div>
+      </div>
+    </form>
+  </div>
+
+  <script>
+    // Simple profile system using localStorage. Single-file demo.
+    const STORAGE_KEY = 'profiles_v1';
+    let profiles = [];
+
+    // DOM refs
+    const profileList = document.getElementById('profileList');
+    const cards = document.getElementById('cards');
+    const countTitle = document.getElementById('countTitle');
+    const search = document.getElementById('search');
+    const btnAdd = document.getElementById('btnAdd');
+    const modal = document.getElementById('modal');
+    const form = document.getElementById('form');
+    const formTitle = document.getElementById('formTitle');
+    const profileId = document.getElementById('profileId');
+    const nameEl = document.getElementById('name');
+    const jobEl = document.getElementById('job');
+    const addressEl = document.getElementById('address');
+    const emailEl = document.getElementById('email');
+    const phoneEl = document.getElementById('phone');
+    const notesEl = document.getElementById('notes');
+    const preview = document.getElementById('preview');
+    const avatarFile = document.getElementById('avatarFile');
+    const btnCancel = document.getElementById('btnCancel');
+    const closeModal = document.getElementById('closeModal');
+    const btnExport = document.getElementById('btnExport');
+    const btnImport = document.getElementById('btnImport');
+    const fileImport = document.getElementById('fileImport');
+    const filterJob = document.getElementById('filterJob');
+
+    // helpers
+    function save(){ localStorage.setItem(STORAGE_KEY, JSON.stringify(profiles)); }
+    function load(){
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if(raw){ try{ profiles = JSON.parse(raw) }catch(e){profiles=[]} }
+      if(!profiles || !profiles.length){ // seed data
+        profiles = [
+          {id:Date.now(),name:'Siti Nurhaliza',job:'Guru',address:'Bandung',email:'siti@example.com',phone:'081234567890',notes:'Aktif di OSIS',avatar:'',created:Date.now()},
+          {id:Date.now()+1,name:'Budi Santoso',job:'Kepala Sekolah',address:'Jakarta',email:'budi@example.com',phone:'081234111222',notes:'Menyukai teknologi',avatar:'',created:Date.now()+1}
+        ];
+        save();
+      }
+    }
+
+    function initials(name){return name.split(' ').map(n=>n[0]||'').slice(0,2).join('').toUpperCase()}
+
+    function createAvatarEl(p){
+      const div = document.createElement('div'); div.className='avatar';
+      if(p.avatar){ const img = document.createElement('img'); img.src=p.avatar; img.style.width='100%'; img.style.height='100%'; div.appendChild(img); }
+      else{ div.textContent = initials(p.name||'NA'); }
+      return div;
+    }
+
+    function renderList(filterText=''){
+      profileList.innerHTML='';
+      const filtered = profiles.filter(p=>{
+        const q=filterText.toLowerCase();
+        return !q || (p.name && p.name.toLowerCase().includes(q)) || (p.job && p.job.toLowerCase().includes(q)) || (p.address && p.address.toLowerCase().includes(q));
+      }).sort((a,b)=>b.created - a.created);
+      filtered.forEach(p=>{
+        const el = document.createElement('div'); el.className='list-item';
+        el.appendChild(createAvatarEl(p));
+        const m = document.createElement('div'); m.className='meta';
+        const nm = document.createElement('div'); nm.textContent=p.name; nm.style.fontWeight='700';
+        const sm = document.createElement('small'); sm.textContent = [p.job||'-', p.address||'-'].join(' • ');
+        m.appendChild(nm); m.appendChild(sm);
+        el.appendChild(m);
+        el.onclick = ()=> openEdit(p.id);
+        profileList.appendChild(el);
+      });
+    }
+
+    function renderCards(filterText=''){
+      cards.innerHTML='';
+      const set = profiles.filter(p=>{
+        const q=filterText.toLowerCase();
+        return !q || (p.name && p.name.toLowerCase().includes(q)) || (p.job && p.job.toLowerCase().includes(q)) || (p.address && p.address.toLowerCase().includes(q));
+      }).sort((a,b)=>b.created - a.created);
+      set.forEach(p=>{
+        const c = document.createElement('div'); c.className='card';
+        const top = document.createElement('div'); top.style.display='flex'; top.style.gap='10px'; top.style.alignItems='center';
+        top.appendChild(createAvatarEl(p));
+        const d = document.createElement('div');
+        const name = document.createElement('div'); name.className='name'; name.textContent=p.name;
+        const info = document.createElement('div'); info.className='info'; info.textContent = [p.job||'-', p.address||'-'].join(' • ');
+        d.appendChild(name); d.appendChild(info);
+        top.appendChild(d);
+        c.appendChild(top);
+        if(p.notes){ const n = document.createElement('div'); n.style.marginTop='8px'; n.textContent = p.notes; c.appendChild(n); }
+        const actions = document.createElement('div'); actions.className='actions';
+        const btnE = document.createElement('button'); btnE.className='btn-sm btn-edit'; btnE.textContent='Edit'; btnE.onclick = (e)=>{e.stopPropagation(); openEdit(p.id)};
+        const btnD = document.createElement('button'); btnD.className='btn-sm btn-delete'; btnD.textContent='Hapus'; btnD.onclick = (e)=>{e.stopPropagation(); delProfile(p.id)};
+        actions.appendChild(btnE); actions.appendChild(btnD);
+        c.appendChild(actions);
+        cards.appendChild(c);
+      });
+      countTitle.textContent = set.length + ' profil';
+      populateJobFilter();
+    }
+
+    function populateJobFilter(){
+      const jobs = Array.from(new Set(profiles.map(p=>p.job).filter(Boolean)));
+      filterJob.innerHTML = '<option value="">Semua Pekerjaan</option>' + jobs.map(j=>`<option value="${escapeHtml(j)}">${escapeHtml(j)}</option>`).join('');
+    }
+
+    function escapeHtml(s){ return String(s).replace(/[&<>\"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+    function openModal(){ modal.classList.add('open'); }
+    function close(){ modal.classList.remove('open'); clearForm(); }
+
+    function clearForm(){ profileId.value=''; formTitle.textContent='Tambah Profil'; preview.src=''; nameEl.value=''; jobEl.value=''; addressEl.value=''; emailEl.value=''; phoneEl.value=''; notesEl.value=''; avatarFile.value=''; }
+
+    function openEdit(id){ const p = profiles.find(x=>x.id===id); if(!p) return; profileId.value = p.id; formTitle.textContent='Edit Profil'; nameEl.value=p.name||''; jobEl.value=p.job||''; addressEl.value=p.address||''; emailEl.value=p.email||''; phoneEl.value=p.phone||''; notesEl.value=p.notes||''; preview.src = p.avatar||''; openModal(); }
+
+    function delProfile(id){ if(!confirm('Hapus profil ini?')) return; profiles = profiles.filter(p=>p.id!==id); save(); renderAll(); }
+
+    form.addEventListener('submit',(e)=>{
+      e.preventDefault();
+      const id = profileId.value ? Number(profileId.value) : Date.now();
+      const obj = {id, name: nameEl.value.trim(), job: jobEl.value.trim(), address: addressEl.value.trim(), email: emailEl.value.trim(), phone: phoneEl.value.trim(), notes: notesEl.value.trim(), created: Date.now() };
+      if(preview.src) obj.avatar = preview.src;
+      const exists = profiles.find(p=>p.id===id);
+      if(exists){ Object.assign(exists,obj); }
+      else{ profiles.push(obj); }
+      save(); renderAll(); close();
+    });
+
+    avatarFile.addEventListener('change',(e)=>{
+      const f = e.target.files && e.target.files[0];
+      if(!f) return;
+      if(f.size > 1024*1024){ alert('File terlalu besar (maks 1MB).'); avatarFile.value=''; return; }
+      const fr = new FileReader(); fr.onload = ()=>{ preview.src = fr.result; };
+      fr.readAsDataURL(f);
+    });
+
+    btnAdd.addEventListener('click',()=>{ clearForm(); openModal(); });
+    btnCancel.addEventListener('click',()=>close());
+    closeModal.addEventListener('click',()=>close());
+
+    search.addEventListener('input',()=>{ renderAll(search.value); });
+    filterJob.addEventListener('change',()=>{ const q = filterJob.value; if(!q) renderAll(); else { const filt = profiles.filter(p=>p.job===q); cards.innerHTML=''; filt.forEach(p=>{/* reuse render logic quickly */}); renderCards(q); } });
+
+    function renderAll(q=''){ renderList(q); renderCards(q); }
+
+    function delAll(){ if(confirm('Reset semua data profil dari localStorage?')){ localStorage.removeItem(STORAGE_KEY); profiles=[]; load(); renderAll(); } }
+
+    // export/import
+    btnExport.addEventListener('click',()=>{
+      const blob = new Blob([JSON.stringify(profiles, null, 2)], {type:'application/json'});
+      const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'profiles.json'; a.click();
+    });
+    btnImport.addEventListener('click',()=> fileImport.click());
+    fileImport.addEventListener('change',(e)=>{
+      const f = e.target.files && e.target.files[0]; if(!f) return; const fr = new FileReader(); fr.onload = ()=>{
+        try{ const imported = JSON.parse(fr.result); if(!Array.isArray(imported)) throw new Error('Bukan array'); imported.forEach(it=>{ if(!it.id) it.id = Date.now()+Math.floor(Math.random()*9999); }); profiles = imported; save(); renderAll(); alert('Import berhasil.'); }
+        catch(err){ alert('Gagal mengimpor: ' + err.message); }
+      }; fr.readAsText(f);
+    });
+
+    // init
+    load(); renderAll();
+
+    // expose small API for debugging in console
+    window.ProfileApp = {profiles, save, load, renderAll};
+  </script>
+</body>
+</html>
